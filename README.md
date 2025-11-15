@@ -29,9 +29,11 @@ Compression example:
 ```python
 import zipfile_zstd as zipfile
 
-zf = zipfile.ZipFile('/tmp/test.zip', 'w', zipfile.ZIP_ZSTANDARD, compresslevel=19)
+zf = zipfile.ZipFile('/tmp/test.zip', 'w', zipfile.ZIP_ZSTANDARD, compresslevel=19, threads = -1)
 zf.write('large_file.img')
 ```
 
-Dictionaries and advanced compression parameters are not supported, sorry.
+Set `threads=-1` to automatically detect and use all available logical cores, or set the number of desired threads.
+The default is to use **half** of the available logical threads/cores.
 
+Dictionaries and other advanced compression parameters are not yet supported.

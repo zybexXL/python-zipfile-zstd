@@ -3,6 +3,7 @@ import zipfile
 import zstandard as zstd
 import threading
 import inspect
+import os
 
 from ._patcher import patch
 
@@ -10,8 +11,15 @@ from ._patcher import patch
 zipfile.ZIP_ZSTANDARD = 93
 zipfile.compressor_names[zipfile.ZIP_ZSTANDARD] = 'zstandard'
 zipfile.ZSTANDARD_VERSION = 20
-
-
+zipfile.ZSTANDARD_THREADS = (os.cpu_count()+1)//2   # default = half of the available cores
+ 
+@patch(zipfile, 'ZipFile')
+def zstd_constructor(*args, **kwargs):
+    if kwargs and 'threads' in kwargs:
+        zipfile.ZSTANDARD_THREADS = kwargs.get('threads')
+        del kwargs['threads']
+    return patch.originals['ZipFile'](*args, **kwargs)
+    
 @patch(zipfile, '_check_compression')
 def zstd_check_compression(compression):
     if compression == zipfile.ZIP_ZSTANDARD:
@@ -44,7 +52,7 @@ if 'compresslevel' in inspect.signature(zipfile._get_compressor).parameters:
         if compress_type == zipfile.ZIP_ZSTANDARD:
             if compresslevel is None:
                 compresslevel = 3
-            return zstd.ZstdCompressor(level=compresslevel, threads=12).compressobj()
+            return zstd.ZstdCompressor(level=compresslevel, threads=zipfile.ZSTANDARD_THREADS).compressobj()
         else:
             return patch.originals['_get_compressor'](compress_type, compresslevel=compresslevel)
 else:
@@ -53,7 +61,7 @@ else:
         if compress_type == zipfile.ZIP_ZSTANDARD:
             if compresslevel is None:
                 compresslevel = 3
-            return zstd.ZstdCompressor(level=compresslevel, threads=12).compressobj()
+            return zstd.ZstdCompressor(level=compresslevel, threads=zipfile.ZSTANDARD_THREADS).compressobj()
         else:
             return patch.originals['_get_compressor'](compress_type)
 
